@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2f8f4e">
+<title>Today's X Post</title>
+<!-- Daily X posting helper (docs/x_posting.md). Reads posts.json (written by
+     tools/social_pack.gd) and start.json ({"start": "YYYY-MM-DD", "handle": "..."}).
+     Day 1 = level 1 on the start date; days follow the phone's local date. -->
+<style>
+:root {
+  --bg: #eef7e8; --card: #ffffff; --ink: #2b1d12; --mute: #6b5a4b; --line: #e3d9cc;
+  --green: #2f8f4e; --green-ink: #ffffff; --cherry: #db2637; --sun: #ffd447; --x: #0f1419;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101410; --card: #1b211b; --ink: #f1ebe2; --mute: #b3a796; --line: #313a31;
+    --x: #e7e9ea;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.45 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+h1 { font-size: 20px; margin: 0; }
+.progress { color: var(--mute); font-size: 14px; }
+.notice { background: var(--sun); color: #3a2a00; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 14px; }
+.card h2 { font-size: 17px; margin: 0 0 2px; }
+.card .sub { color: var(--mute); font-size: 14px; margin: 0 0 10px; }
+.card img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.text { white-space: pre-wrap; background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: 15px; word-break: break-word; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+button, .btn { appearance: none; border: 0; border-radius: 999px; padding: 12px 16px; font: inherit; font-weight: 700;
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; }
+.primary { background: var(--green); color: var(--green-ink); flex: 1 1 100%; font-size: 17px; }
+.secondary { background: transparent; color: var(--ink); border: 2px solid var(--line); flex: 1 1 0; }
+.done-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 600; }
+.done-row input { width: 24px; height: 24px; accent-color: var(--green); }
+ol { margin: 6px 0 10px; padding-left: 22px; } ol li { margin: 2px 0; }
+nav { display: flex; gap: 8px; margin: 4px 0 14px; }
+nav button { flex: 1; background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--x); color: var(--bg);
+  padding: 10px 16px; border-radius: 999px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+details { color: var(--mute); } details summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+.error { color: var(--cherry); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Today's X post</h1>
+    <span class="progress" id="progress"></span>
+  </header>
+  <div id="notice"></div>
+  <nav>
+    <button id="prev" type="button">‹ Previous day</button>
+    <button id="today" type="button">Today</button>
+    <button id="next" type="button">Next day ›</button>
+  </nav>
+
+  <section class="card" id="puzzle">
+    <h2>1. Post today's puzzle</h2>
+    <p class="sub" id="puzzle-sub"></p>
+    <img id="puzzle-img" alt="">
+    <div class="text" id="puzzle-text"></div>
+    <div class="row">
+      <button class="primary" id="post-puzzle" type="button">Post puzzle to X</button>
+      <button class="secondary" id="copy-puzzle" type="button">Copy text</button>
+      <a class="btn secondary" id="save-puzzle" download>Save picture</a>
+    </div>
+    <label class="done-row"><input type="checkbox" id="done-puzzle"> Puzzle posted</label>
+  </section>
+
+  <section class="card" id="answer">
+    <h2>2. Reply with yesterday's answer</h2>
+    <p class="sub" id="answer-sub"></p>
+    <ol>
+      <li>Tap <b>Save picture</b> and <b>Copy text</b> below.</li>
+      <li>Open <a id="profile" target="_blank" rel="noopener">your X profile</a>, open yesterday's puzzle post, tap <b>Reply</b>.</li>
+      <li>Add the picture from your gallery, paste the text, post.</li>
+    </ol>
+    <img id="answer-img" alt="">
+    <div class="text" id="answer-text"></div>
+    <div class="row">
+      <a class="btn secondary" id="save-answer" download>Save picture</a>
+      <button class="secondary" id="copy-answer" type="button">Copy text</button>
+    </div>
+    <label class="done-row"><input type="checkbox" id="done-answer"> Answer posted</label>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>3. Then 10 minutes on X</summary>
+      <ol>
+        <li>Search "matchstick puzzle", "math puzzle", "brain teaser" (Latest tab).</li>
+        <li>Reply to 5 posts with something real: your answer, a tip, a question.</li>
+        <li>Answer every reply on your own puzzle post.</li>
+        <li>No links in these replies. Your profile has the link.</li>
+      </ol>
+    </details>
+  </section>
+  <p class="error" id="error"></p>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+const DAY_MS = 86400000;
+const $ = (id) => document.getElementById(id);
+let posts = [];
+let config = {};
+let level = 1;
+const files = {};
+
+function store(key, value) {
+  try {
+    if (value === undefined) return localStorage.getItem(key);
+    if (value) localStorage.setItem(key, "1"); else localStorage.removeItem(key);
+  } catch (e) { return null; }
+}
+
+function toast(message) {
+  const t = $("toast");
+  t.textContent = message;
+  t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+function localMidnight(date) {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+// Level for today: day 1 on the start date. 0 when there is no start date or it lies ahead.
+function todaysLevel() {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(config.start || "")) return 0;
+  const [y, m, d] = config.start.split("-").map(Number);
+  const day = Math.floor((localMidnight(new Date()) - Date.UTC(y, m - 1, d)) / DAY_MS) + 1;
+  return day >= 1 ? Math.min(day, posts.length) : 0;
+}
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast("Text copied"); return true; }
+  catch (e) { toast("Copy failed: select the text and copy it"); return false; }
+}
+
+async function fileFor(path) {
+  if (!files[path]) {
+    files[path] = fetch(path).then((r) => {
+      if (!r.ok) throw new Error(path + ": " + r.status);
+      return r.blob();
+    }).then((blob) => new File([blob], path.split("/").pop(), { type: "image/jpeg" }));
+  }
+  return files[path];
+}
+
+function show() {
+  const post = posts[level - 1];
+  const today = todaysLevel();
+  $("progress").textContent = "Day " + level + " of " + posts.length;
+  $("title").textContent = level === today ? "Today's X post" : "Day " + level + (today ? " (not today)" : "");
+  let notice = "";
+  if (!today) {
+    notice = config.start ? "Posting starts on " + config.start + ". This is a preview." : "No start date yet. This is a preview.";
+  } else if (level !== today) {
+    notice = "You are looking at day " + level + ". Today is day " + today + ".";
+  }
+  $("notice").innerHTML = notice ? '<div class="notice"></div>' : "";
+  if (notice) $("notice").firstChild.textContent = notice;
+
+  $("puzzle-sub").textContent = "Level " + post.level + " · " + post.category + (post.difficulty ? " · " + post.difficulty : "");
+  $("puzzle-img").src = post.image;
+  $("puzzle-img").alt = post.alt;
+  $("puzzle-text").textContent = post.text;
+  $("save-puzzle").href = post.image;
+  $("save-puzzle").setAttribute("download", "matchstick-" + post.code + ".jpg");
+  $("done-puzzle").checked = !!store("posted-puzzle-" + post.level);
+  fileFor(post.image).catch(() => {});
+
+  const prev = posts[level - 2];
+  $("answer").hidden = !prev;
+  if (prev) {
+    $("answer-sub").textContent = "Answer to level " + prev.level + ", under yesterday's post";
+    $("answer-img").src = prev.answer_image;
+    $("answer-img").alt = prev.answer_alt;
+    $("answer-text").textContent = prev.answer_text;
+    $("save-answer").href = prev.answer_image;
+    $("save-answer").setAttribute("download", "matchstick-" + prev.code + "-answer.jpg");
+    $("done-answer").checked = !!store("posted-answer-" + prev.level);
+  }
+  const handle = (config.handle || "").replace(/^@/, "");
+  $("profile").href = handle ? "https://x.com/" + encodeURIComponent(handle) : "https://x.com/";
+  $("prev").disabled = level <= 1;
+  $("next").disabled = level >= posts.length;
+  history.replaceState(null, "", "#" + level);
+}
+
+async function postPuzzle() {
+  const post = posts[level - 1];
+  let file;
+  try { file = await fileFor(post.image); } catch (e) { toast("Picture not loaded yet, try again"); return; }
+  const data = { files: [file], text: post.text };
+  if (navigator.canShare && navigator.canShare(data)) {
+    try { await navigator.share(data); }
+    catch (e) { if (e.name !== "AbortError") toast("Sharing failed: use Save picture and Copy text"); }
+  } else {
+    toast("Sharing not supported here: use Save picture and Copy text");
+  }
+}
+
+function go(target) {
+  level = Math.max(1, Math.min(posts.length, target));
+  show();
+  window.scrollTo(0, 0);
+}
+
+async function start() {
+  try {
+    const [p, c] = await Promise.all([
+      fetch("posts.json", { cache: "no-cache" }).then((r) => r.json()),
+      fetch("start.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    ]);
+    posts = p.posts;
+    config = c;
+  } catch (e) {
+    $("error").textContent = "Could not load the posts: " + e.message;
+    return;
+  }
+  const fromHash = parseInt(location.hash.slice(1), 10);
+  level = fromHash >= 1 && fromHash <= posts.length ? fromHash : (todaysLevel() || 1);
+  $("prev").onclick = () => go(level - 1);
+  $("next").onclick = () => go(level + 1);
+  $("today").onclick = () => go(todaysLevel() || 1);
+  $("post-puzzle").onclick = postPuzzle;
+  $("copy-puzzle").onclick = () => copy(posts[level - 1].text);
+  $("copy-answer").onclick = () => copy(posts[level - 2].answer_text);
+  $("done-puzzle").onchange = (e) => store("posted-puzzle-" + posts[level - 1].level, e.target.checked);
+  $("done-answer").onchange = (e) => store("posted-answer-" + posts[level - 2].level, e.target.checked);
+  window.addEventListener("hashchange", () => {
+    const n = parseInt(location.hash.slice(1), 10);
+    if (n >= 1 && n <= posts.length && n !== level) go(n);
+  });
+  show();
+}
+start();
+</script>
+</body>
+</html>
